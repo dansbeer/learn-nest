@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString, MinLength } from 'class-validator';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 export class CreateCatDto {
   @ApiProperty({ example: 'Milo', description: 'Nama kucing' })
@@ -23,8 +24,18 @@ export class CreateCatDto {
   breed?: string;
 }
 
-@Schema({ collection: 'cats', versionKey: false })
+@Schema({
+  collection: 'cats',
+  timestamps: true,
+  versionKey: false,
+})
 export class Cat extends Document {
+  @Prop({
+    type: String,
+    default: () => new mongoose.Types.ObjectId().toString(),
+  })
+  declare _id: string;
+
   @Prop({ required: true })
   name: string;
 

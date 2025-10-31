@@ -1,19 +1,23 @@
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AppConfig } from '../config/config';
 
 export const MongoDBConnection = MongooseModule.forRootAsync({
-  imports: [ConfigModule],
-  inject: [ConfigService],
-  useFactory: async (configService: ConfigService) => ({
-    uri: configService.get<string>('MONGODB_URI'),
-    dbName: configService.get<string>('MONGODB_DB'),
+  useFactory: async () => ({
+    uri: AppConfig.mongoUri,
+    dbName: AppConfig.mongoDb || undefined,
     connectionFactory: (connection) => {
-      connection.on('connected', () =>
-        console.log('✅ MongoDB connected successfully'),
-      );
-      connection.on('error', (err) =>
-        console.error('❌ MongoDB connection error:', err),
-      );
+      connection.on('connected', () => {
+        console.log('✅ MongoDB connected successfully');
+      });
+
+      connection.on('error', (err) => {
+        console.error('❌ MongoDB connection error:', err);
+      });
+
+      connection.on('disconnected', () => {
+        console.warn('⚠️ MongoDB disconnected');
+      });
+
       return connection;
     },
   }),
