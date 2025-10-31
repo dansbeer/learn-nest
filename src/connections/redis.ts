@@ -11,7 +11,7 @@ export async function redisConfig(): Promise<CacheModuleOptions> {
     : `redis://${host}:${port}`;
 
   const store = await redisStore({
-    url: redisUrl,
+    url: redisUrl, 
     host: host,
     port: port,
     password: password,
