@@ -14,6 +14,7 @@ export const AppConfig = {
     port: Number(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD,
     username: process.env.REDIS_USERNAME || 'default',
+    db: process.env.REDIS_DB ? Number(process.env.REDIS_DB) : 0,
   },
 
   // Port API

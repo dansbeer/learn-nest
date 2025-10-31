@@ -50,11 +50,11 @@ export class CatsController {
   async getOneCat(@Query('id') id: string, @Res() res: Response) {
     const startTime = Date.now();
 
-    // await this.catsService.create(body);
+    const data = await this.catsService.findById(id);
 
     const response = setMetadataResponse(
       startTime,
-      {},
+      data,
       'success',
       HttpStatus.OK,
     );

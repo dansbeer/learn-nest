@@ -1,15 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cat, CreateCatDto } from '../models/cats.model';
 import * as crypto from 'crypto';
+import { RedisService } from '../connections/redis';
 
 @Injectable()
 export class CatsService {
   constructor(
     @InjectModel(Cat.name)
     private readonly catModel: Model<Cat>,
+    private readonly redisService: RedisService,
   ) {}
+
+  async findById(id: string) {
+    const cacheKey = `cat_id:${id}`;
+
+    // cek cache dulu
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      console.log('✅ Cached Get One Cat');
+      return JSON.parse(cached);
+    }
+
+    console.log('❌ Cache miss Get One Cat');
+    const cat = await this.catModel.findById(id).exec();
+
+    if (!cat) {
+      console.log(`⚠️ Cat with id ${id} not found`);
+      return null;
+    }
+
+    const catJson = cat.toJSON();
+
+    // simpan ke Redis db 3
+    await this.redisService.set(cacheKey, catJson, 300); // TTL 5 menit
+    return catJson;
+  }
 
   async create(catData: CreateCatDto) {
     // generate id dari nama + umur + waktu
@@ -26,10 +53,6 @@ export class CatsService {
 
   async findAll() {
     return await this.catModel.find().exec();
-  }
-
-  async findById(id: string) {
-    return await this.catModel.findById(id).exec();
   }
 
   async update(id: string, data: Partial<Cat>) {

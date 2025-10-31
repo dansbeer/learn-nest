@@ -1,4 +1,4 @@
-import { ResponseDto } from 'src/models/dto';
+import { ResponseDto } from '../models/dto';
 
 export function setMetadataResponse<T>(
   startTime: number,

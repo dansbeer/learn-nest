@@ -28,6 +28,15 @@ export class CreateCatDto {
   collection: 'cats',
   timestamps: true,
   versionKey: false,
+  toJSON: {
+    virtuals: true,
+    versionKey: false,
+    transform: (_: any, ret: any) => {
+      // ubah _id -> id dan hapus _id
+      ret.id = ret._id?.toString();
+      delete ret._id;
+    },
+  },
 })
 export class Cat extends Document {
   @Prop({

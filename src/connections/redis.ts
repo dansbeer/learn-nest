@@ -1,33 +1,59 @@
-import { CacheModuleOptions } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-ioredis-yet';
-import { AppConfig } from '../config/config';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis, { RedisOptions } from 'ioredis';
 
-export async function redisConfig(): Promise<CacheModuleOptions> {
-  const { host, port, password, username } = AppConfig.redis;
-  const safePassword = password ? encodeURIComponent(password) : undefined;
+@Injectable()
+export class RedisService {
+  private readonly redis: Redis;
+  private readonly logger = new Logger(RedisService.name);
 
-  const redisUrl = safePassword
-    ? `redis://${username}:${safePassword}@${host}:${port}`
-    : `redis://${host}:${port}`;
+  constructor(private readonly configService: ConfigService) {
+    const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
+    const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
+    const redisPassword = this.configService.get<string>('REDIS_PASSWORD', '');
+    const redisDb = this.configService.get<number>('REDIS_DB', 3); // default db 3
 
-  const store = await redisStore({
-    url: redisUrl, 
-    host: host,
-    port: port,
-    password: password,
-    username: username,
-  });
+    const redisOptions: RedisOptions = {
+      host: redisHost,
+      port: redisPort,
+      db: redisDb,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
+    };
 
-  const client: any = (store as any)?.client;
-  if (client) {
-    client.on('connect', () =>
-      console.log(`🔌 Connected to Redis ${host}:${port}`),
+    if (redisPassword) {
+      redisOptions.password = redisPassword;
+    }
+
+    this.redis = new Redis(redisOptions);
+
+    this.redis.on('connect', () =>
+      this.logger.log(`✅ Connected to Redis db ${redisDb}`),
     );
-    client.on('ready', () => console.log('✅ Redis client ready'));
-    client.on('error', (err: any) =>
-      console.error('❌ Redis error:', err.message),
+    this.redis.on('ready', () => this.logger.log('Redis client ready'));
+    this.redis.on('error', (err) =>
+      this.logger.error(`❌ Redis error: ${err.message}`),
     );
   }
 
-  return { store };
+  async get(key: string): Promise<string | null> {
+    try {
+      return await this.redis.get(key);
+    } catch (err) {
+      this.logger.error(`Redis get error for key ${key}: ${err.message}`);
+      return null;
+    }
+  }
+
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    try {
+      const data = typeof value === 'string' ? value : JSON.stringify(value);
+      if (ttl) {
+        await this.redis.set(key, data, 'EX', ttl);
+      } else {
+        await this.redis.set(key, data);
+      }
+    } catch (err) {
+      this.logger.error(`Redis set error for key ${key}: ${err.message}`);
+    }
+  }
 }
